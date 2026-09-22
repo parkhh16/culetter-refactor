@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#FFFFFF">
+
+    <!-- MP4 비디오 배경 (좌우 맞춤, 상하 여백은 흰색 배경) -->
+    <VideoView
+        android:id="@+id/loginVideo"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:scaleType="centerCrop" />
+
+    <!-- Google 로그인 버튼 (비디오 위에 오버레이) -->
+    <Button
+        android:id="@+id/googleLoginButton"
+        android:layout_width="300dp"
+        android:layout_height="56dp"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="50dp"
+        android:layout_alignParentBottom="true"
+        android:background="@drawable/google_button_background"
+        android:textColor="#202124"
+        android:text="Google로 로그인하기"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:elevation="8dp" />
+
+</RelativeLayout>

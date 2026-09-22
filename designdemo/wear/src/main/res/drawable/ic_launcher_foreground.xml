@@ -1,0 +1,14 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 하트 모양 -->
+    <path
+        android:fillColor="#FF6B9D"
+        android:pathData="M54,20c-8,0 -15,7 -15,15c0,12 15,25 15,25s15,-13 15,-25c0,-8 -7,-15 -15,-15z" />
+    <!-- 하트 내부 하이라이트 -->
+    <path
+        android:fillColor="#FF8A80"
+        android:pathData="M54,25c-6,0 -11,5 -11,11c0,8 11,18 11,18s11,-10 11,-18c0,-6 -5,-11 -11,-11z" />
+</vector>

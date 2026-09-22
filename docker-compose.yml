@@ -1,0 +1,88 @@
+version: "3.8"
+
+services:
+  backend:
+    build:
+      context: ./Backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=${DB_HOST}
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_PORT=${DB_PORT}
+      - ETH_RPC_URL=${ETH_RPC_URL}
+      - ETH_CHAIN_ID=${ETH_CHAIN_ID}
+      - ETH_PRIVATE_KEY=${ETH_PRIVATE_KEY}
+      - PINATA_API_BASE=${PINATA_API_BASE}
+      - PINATA_GATEWAY_BASE=${PINATA_GATEWAY_BASE}
+      - PINATA_JWT=${PINATA_JWT}
+      - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+      - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      - MINIO_ENDPOINT_EXTERNAL=${MINIO_ENDPOINT_EXTERNAL}
+      - MINIO_CONSOLE_PORT=${MINIO_CONSOLE_PORT}
+      - MINIO_BUCKET=${MINIO_BUCKET}
+      - MINIO_ACCESS_KEY=${MINIO_ACCESS_KEY}
+      - MINIO_SECRET_KEY=${MINIO_SECRET_KEY}
+      - MINIO_SECURE=${MINIO_SECURE}
+      - CONTRACT_ADDRESS=${CONTRACT_ADDRESS}
+      - TZ=Asia/Seoul   # Timezone 설정 추가
+
+  voice-api:
+    build:
+      context: ./Ai/voice-api
+      dockerfile: Dockerfile
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    environment:
+      MINIO_ENDPOINT: minio:9000
+      TZ: Asia/Seoul   # Timezone 설정 추가
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      TZ: Asia/Seoul   # Timezone 설정 추가
+    ports:
+      - "${MINIO_API_PORT:-9000}:9000"       # S3 API
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"   # 콘솔(필요하면 방화벽 제한)
+    volumes:
+      - minio-data:/data
+      - minio-config:/root/.minio
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/ready"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  retrospect-api:
+    build:
+      context: ./Ai/retrospect-api
+      dockerfile: Dockerfile
+    ports:
+      - "8082:8082"
+    env_file:
+      - .env
+    environment:
+      TZ: Asia/Seoul   # Timezone 설정 추가
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8082/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+    restart: unless-stopped
+
+volumes:
+  minio-data:
+  minio-config:
