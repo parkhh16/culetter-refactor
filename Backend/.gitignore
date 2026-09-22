@@ -40,3 +40,4 @@ out/
 
 .env
 /src/main/resources/firebase-service-account.json
+gradle.properties
