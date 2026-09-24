@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Optional;
 
 @Repository
-public interface RetrospectRepository extends JpaRepository<RetrospectEntity, Long> {
+public interface RetrospectRepository extends JpaRepository<RetrospectEntity, Long>, RetrospectQueryRepository {
 
     /**
      * 특정 스토리의 특정 날짜 회고 조회

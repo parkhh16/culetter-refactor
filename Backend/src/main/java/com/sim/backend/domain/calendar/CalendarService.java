@@ -41,17 +41,13 @@ public class CalendarService {
 
         UserEntity user = userOptional.get();
 
-        // 해당 사용자의 모든 스토리 조회
-        List<StoryEntity> userStories = storyRepository.findByUserId(user.getId());
-
         YearMonth yearMonth = YearMonth.of(year, month);
         LocalDate startDate = yearMonth.atDay(1);
         LocalDate endDate = yearMonth.atEndOfMonth();
 
-        // 모든 스토리의 회고를 조회
-        return userStories.stream()
-                .flatMap(story -> retrospectRepository.findByStoryIdOrderByEntryDateAsc(story.getId()).stream())
-                .filter(entity -> !entity.getEntryDate().isBefore(startDate) && !entity.getEntryDate().isAfter(endDate))
+        // 해당 사용자의 이번 달 회고를 스토리와 조인해 한 번에 조회 (N+1 방지)
+        return retrospectRepository.findByUserIdAndEntryDateBetween(user.getId(), startDate, endDate)
+                .stream()
                 .map(RetrospectResponseDto::from)
                 .collect(Collectors.toList());
     }
