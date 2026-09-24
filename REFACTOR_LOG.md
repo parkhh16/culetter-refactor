@@ -7,15 +7,24 @@
 
 ---
 
-## #1 CalendarService N+1 쿼리 — `todo`
+## #1 CalendarService N+1 쿼리 — `done`
 
-- **위치**: `Backend/src/main/java/com/sim/backend/domain/calendar/CalendarService.java:52-53`
+- **위치**: `Backend/src/main/java/com/sim/backend/domain/calendar/CalendarService.java:52-53` (수정 전)
 - **문제**: `getCalendarList()`가 사용자의 스토리 목록을 조회한 뒤, 스토리마다
   `retrospectRepository.findByStoryIdOrderByEntryDateAsc(story.getId())`를 스트림 `flatMap` 내부에서
-  반복 호출. 스토리 N개 → 쿼리 N+1번.
+  반복 호출. 스토리 N개 → 쿼리 N+1번. 기간 필터링도 DB가 아닌 메모리(stream filter)에서 수행.
 - **검증**: 코드 직접 확인 완료 (2026-09-22).
-- **전/후 수치**: (착수 시 측정 예정 — 실제 호출 시 쿼리 로그 카운트)
-- **커밋**: -
+- **후보 비교**:
+  - A) `IN` 절 배치 조회 — 쿼리 2번, 구현 단순
+  - B) QueryDSL 조인(fetch join) — 쿼리 2번, 스토리 개수와 무관하게 고정, 기존 `NftQueryRepositoryImpl` 패턴과 일관성 → **채택**
+- **측정 방법**: `@DataJpaTest` + H2 인메모리 DB + Hibernate `Statistics.getQueryExecutionCount()`로
+  회귀 테스트화 (`CalendarServiceQueryCountTest.java`). 스토리 3개 + 회고 3개 픽스처 기준.
+- **전/후 수치**:
+  - Before: **5 쿼리** (user 조회 1 + story 목록 1 + 스토리별 회고 조회 N=3) — 스토리 수에 비례해 증가
+  - After: **2 쿼리** (user 조회 1 + story-retrospect fetch join 1) — 스토리 수와 무관하게 고정
+- **부수 발견**: `build.gradle`에 `useJUnitPlatform()`이 없어 JUnit5 테스트가 전혀 실행되지 않던
+  인프라 결함 발견 및 수정 (2026-09-24). 기존 `BackendApplicationTests`도 동일하게 영향받고 있었음.
+- **커밋**: (아래 참고)
 
 ## #2 NftService/스케줄러 트랜잭션 경계 — `todo`
 
