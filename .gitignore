@@ -5,3 +5,5 @@ designdemo/app/google-services.json
 *.sql
 exec/*.docx
 exec/*.docx
+
+blog-draft-*.md
