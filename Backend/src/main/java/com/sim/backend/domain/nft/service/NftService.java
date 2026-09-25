@@ -320,7 +320,7 @@ public class NftService {
             String from = "0x" + topics.get(1).substring(26); // indexed address 디코드
             if (!ZERO.equalsIgnoreCase(from)) continue;        // 민팅만 필터
             // topics[3] = tokenId
-            nftRepository.setTokenIdByNftId(nftEntity.getId(), Numeric.toBigInt(topics.get(3)));
+            nftRepository.markMintedOnchain(nftEntity.getId(), Numeric.toBigInt(topics.get(3)));
 
             return;
         }

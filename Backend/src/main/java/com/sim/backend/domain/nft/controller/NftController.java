@@ -8,14 +8,12 @@ import com.sim.backend.domain.nft.entity.NftEntity;
 import com.sim.backend.domain.nft.repository.NftRepository;
 import com.sim.backend.domain.nft.service.NftService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import com.sim.backend.domain.nft.dto.request.MinioEventRequestDTO;
-import org.web3j.protocol.exceptions.TransactionException;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -23,6 +21,7 @@ import java.util.Optional;
 @RestController
 @RequestMapping("/api/v1/nft")
 @RequiredArgsConstructor
+@Slf4j
 public class NftController {
 
     private final NftRepository nftRepository;
@@ -110,21 +109,23 @@ public class NftController {
      * 정해진 시간이 되었을 때 nft 토큰 화를 진행하여 수신자의 지갑주소로 송신한다..
      */
     @Scheduled(fixedDelay = 60_000)
-    @Transactional
     public void mintToSmartContract() {
         nftRepository.modifyStatusDuePassedNfts(LocalDateTime.now());
         while (true) {
-            Optional<NftEntity> ready = nftRepository.pickOneNft();
-            if (ready.isEmpty()) break;
-            NftEntity nft = ready.get();
-
-            nftRepository.tokenizationStarted(nft.getId());
+            Optional<NftEntity> claimed = nftRepository.pickAndClaimNft();
+            if (claimed.isEmpty()) break;
+            NftEntity nft = claimed.get();
 
             try {
-                nftService.mintToSmartContract(nft);
+                // MINTED_ONCHAIN으로 집힌 건은 이전 시도에서 온체인 mint까지는 성공한 것이므로 재민팅하지 않는다.
+                if (nft.getStatus() != NftEntity.NftStatus.MINTED_ONCHAIN) {
+                    nftService.mintToSmartContract(nft);
+                }
                 nftRepository.tokenizationFinished(nft.getId());
-            } catch (IOException | TransactionException e) {
-                throw new IllegalStateException("receipt wait/parse failed: " + e.getMessage(), e);
+            } catch (Exception e) {
+                // 어떤 예외든 이 건만 재시도 대상으로 되돌리고, 나머지 대기 중인 NFT는 계속 처리한다.
+                log.error("NFT {} 민팅 실패, 재시도 대상으로 되돌림: {}", nft.getId(), e.getMessage(), e);
+                nftRepository.revertToReadyForRetry(nft.getId());
             }
         }
     }

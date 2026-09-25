@@ -69,6 +69,9 @@ public class NftEntity {
         PENDING_DATE,
         READY_TO_MINT,
         IN_PROGRESS,
+        // 온체인 mint(Transfer 이벤트 확인)까지는 성공했지만 DB 완료 처리(COMPLETED)가 아직 안 된 상태.
+        // 이 상태에서 재시도할 때는 재민팅하지 않고 완료 처리만 마저 진행한다.
+        MINTED_ONCHAIN,
         COMPLETED
     }
 }
