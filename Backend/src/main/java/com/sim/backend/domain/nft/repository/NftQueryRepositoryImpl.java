@@ -5,7 +5,8 @@ import com.sim.backend.domain.letter.QLetterEntity;
 import com.sim.backend.domain.nft.entity.NftEntity;
 import com.sim.backend.domain.nft.entity.QNftEntity;
 import com.sim.backend.domain.users.UserEntity;
-import jakarta.persistence.LockModeType;
+import jakarta.persistence.EntityManager;
+import jakarta.persistence.PersistenceContext;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,9 @@ import java.util.Optional;
 public class NftQueryRepositoryImpl implements NftQueryRepository {
 
     private final JPAQueryFactory queryFactory;
+
+    @PersistenceContext
+    private EntityManager em;
 
     public List<NftEntity> findSentNfts(UserEntity user) {
         QNftEntity nft = QNftEntity.nftEntity;
@@ -50,19 +54,22 @@ public class NftQueryRepositoryImpl implements NftQueryRepository {
     }
 
     @Transactional
+    @SuppressWarnings("unchecked")
     public Optional<NftEntity> pickAndClaimNft() {
-        QNftEntity n = QNftEntity.nftEntity;
-        NftEntity row = queryFactory.selectFrom(n)
-                .where(n.status.in(NftEntity.NftStatus.READY_TO_MINT, NftEntity.NftStatus.MINTED_ONCHAIN))
-                .orderBy(n.reservationDate.asc(), n.id.asc())
-                .limit(1)
-                .setLockMode(LockModeType.PESSIMISTIC_WRITE)
-                .setHint("jakarta.persistence.lock.timeout", -2) // Hibernate: -2 = SKIP LOCKED
-                .fetchOne();
+        // Hibernate의 lock.timeout=-2 힌트는 방언에 따라 SKIP LOCKED로 번역되지 않을 수 있어
+        // SQL에 직접 명시하는 native query로 처리한다 (H2 2.3 / MySQL 8.0+ 모두 지원).
+        List<NftEntity> rows = em.createNativeQuery("""
+                SELECT * FROM nfts
+                 WHERE status IN ('READY_TO_MINT', 'MINTED_ONCHAIN')
+                 ORDER BY reservation_date ASC, nft_id ASC
+                 LIMIT 1
+                 FOR UPDATE SKIP LOCKED
+                """, NftEntity.class).getResultList();
 
-        if (row == null) {
+        if (rows.isEmpty()) {
             return Optional.empty();
         }
+        NftEntity row = rows.get(0);
         if (row.getStatus() == NftEntity.NftStatus.READY_TO_MINT) {
             row.setStatus(NftEntity.NftStatus.IN_PROGRESS);
         }

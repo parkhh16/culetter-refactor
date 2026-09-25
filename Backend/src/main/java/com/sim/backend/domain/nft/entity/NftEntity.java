@@ -72,6 +72,9 @@ public class NftEntity {
         // 온체인 mint(Transfer 이벤트 확인)까지는 성공했지만 DB 완료 처리(COMPLETED)가 아직 안 된 상태.
         // 이 상태에서 재시도할 때는 재민팅하지 않고 완료 처리만 마저 진행한다.
         MINTED_ONCHAIN,
-        COMPLETED
+        COMPLETED,
+        // 이번 스케줄러 실행에서 처리 실패한 건. 같은 실행 안에서 곧바로 재시도되어 무한루프에 빠지지
+        // 않도록 pickAndClaimNft() 대상에서 제외하고, 다음 스케줄 실행 시작 시 READY_TO_MINT로 되돌린다.
+        MINT_FAILED
     }
 }

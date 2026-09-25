@@ -59,10 +59,19 @@ public interface NftRepository extends JpaRepository<NftEntity, Long>, NftQueryR
     @Transactional
     @Query("""
         update NftEntity n
-        set n.status = com.sim.backend.domain.nft.entity.NftEntity.NftStatus.READY_TO_MINT
+        set n.status = com.sim.backend.domain.nft.entity.NftEntity.NftStatus.MINT_FAILED
         where n.id = :id
     """)
-    void revertToReadyForRetry(Long id);
+    void markMintFailed(Long id);
+
+    @Modifying
+    @Transactional
+    @Query("""
+        update NftEntity n
+        set n.status = com.sim.backend.domain.nft.entity.NftEntity.NftStatus.READY_TO_MINT
+        where n.status = com.sim.backend.domain.nft.entity.NftEntity.NftStatus.MINT_FAILED
+    """)
+    void resetFailedForRetry();
 
     @Modifying
     @Transactional

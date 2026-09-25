@@ -12,6 +12,7 @@ import com.sim.backend.domain.users.UserEntity;
 import com.sim.backend.domain.users.UserRepository;
 import com.sim.backend.global.config.QueryDslConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -55,6 +56,7 @@ class NftSchedulerTransactionBoundaryTest {
     private LetterRepository letterRepository;
 
     @Test
+    @Timeout(10)
     void 세번째_NFT_처리가_실패해도_앞선_두건은_COMPLETED로_남는다() throws Exception {
         UserEntity user = new UserEntity();
         user.setFirebaseUid("scheduler-test-uid");
@@ -96,8 +98,9 @@ class NftSchedulerTransactionBoundaryTest {
         assertThat(completedCount).isEqualTo(2L);
 
         NftEntity reloadedThird = nftRepository.findById(nft3.getId()).orElseThrow();
-        // 실패한 3번째는 재시도 대상으로 READY_TO_MINT로 되돌아가 다음 스케줄에서 다시 시도된다.
-        assertThat(reloadedThird.getStatus()).isEqualTo(NftEntity.NftStatus.READY_TO_MINT);
+        // 실패한 3번째는 MINT_FAILED로 남아 이번 실행에서는 재시도되지 않는다(무한루프 방지).
+        // 다음 스케줄 실행 시작 시 resetFailedForRetry()가 READY_TO_MINT로 되돌린다.
+        assertThat(reloadedThird.getStatus()).isEqualTo(NftEntity.NftStatus.MINT_FAILED);
     }
 
     private NftEntity saveReadyNft(UserEntity user, StoryEntity story, int seq) {

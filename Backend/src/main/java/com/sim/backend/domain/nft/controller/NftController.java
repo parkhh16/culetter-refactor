@@ -111,6 +111,9 @@ public class NftController {
     @Scheduled(fixedDelay = 60_000)
     public void mintToSmartContract() {
         nftRepository.modifyStatusDuePassedNfts(LocalDateTime.now());
+        // 이전 실행에서 실패해 MINT_FAILED로 남은 건을 이번 실행부터 다시 재시도 대상으로 되돌린다.
+        // (실패 즉시 되돌리면 같은 실행의 while 루프 안에서 곧바로 재선택되어 무한루프에 빠진다)
+        nftRepository.resetFailedForRetry();
         while (true) {
             Optional<NftEntity> claimed = nftRepository.pickAndClaimNft();
             if (claimed.isEmpty()) break;
@@ -124,8 +127,10 @@ public class NftController {
                 nftRepository.tokenizationFinished(nft.getId());
             } catch (Exception e) {
                 // 어떤 예외든 이 건만 재시도 대상으로 되돌리고, 나머지 대기 중인 NFT는 계속 처리한다.
-                log.error("NFT {} 민팅 실패, 재시도 대상으로 되돌림: {}", nft.getId(), e.getMessage(), e);
-                nftRepository.revertToReadyForRetry(nft.getId());
+                // 전체 스택트레이스 대신 타입+메시지만 남긴다 (재시도 루프 특성상 반복 발생 가능, 로그 비용 최소화).
+                log.error("NFT {} 민팅 실패, 다음 실행에서 재시도 예정: {}: {}",
+                        nft.getId(), e.getClass().getSimpleName(), e.getMessage());
+                nftRepository.markMintFailed(nft.getId());
             }
         }
     }

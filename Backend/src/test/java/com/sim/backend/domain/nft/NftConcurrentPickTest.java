@@ -10,6 +10,7 @@ import com.sim.backend.domain.users.UserEntity;
 import com.sim.backend.domain.users.UserRepository;
 import com.sim.backend.global.config.QueryDslConfig;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
@@ -54,6 +55,7 @@ class NftConcurrentPickTest {
     private DataSource dataSource;
 
     @Test
+    @Timeout(10) // SKIP LOCKED가 어떤 이유로든 안 먹혀 블로킹되면 무한 대기 대신 10초 안에 실패로 드러난다.
     void 다른_커넥션이_잠근_행은_건너뛰고_다른_NFT를_claim한다() throws Exception {
         UserEntity user = new UserEntity();
         user.setFirebaseUid("concurrent-test-uid");
