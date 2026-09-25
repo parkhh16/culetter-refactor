@@ -1,6 +1,7 @@
 .env
 
 .idea
+.vscode/
 designdemo/app/google-services.json
 *.sql
 exec/*.docx
