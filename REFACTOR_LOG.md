@@ -109,6 +109,16 @@
     기준 보일러플레이트 제거, 응답은 기존과 동일(500 + 메시지)하게 유지 확인
 - **한계**: 컨트롤러 5개(Calendar/Record/Retrospect/Story/Auth)의 중복 try-catch는 아직 안 지움 —
   동작엔 지장 없지만(그냥 안 쓰이는 코드로 남음) 다음 단위에서 정리 필요.
+- **부수 발견**: `GlobalExceptionHandler`(`@RestControllerAdvice`)를 추가하고 실제 `bootRun`으로
+  Swagger를 열어보니 `NoSuchMethodError: ControllerAdviceBean.<init>`로 500 에러 발생. 이 프로젝트에
+  `@ControllerAdvice` 빈이 지금까지 하나도 없어서 springdoc이 관련 코드 경로를 탄 적이 없었고,
+  `springdoc-openapi-starter-webmvc-ui:2.2.0`(Spring Boot 3.1.x 대상)이 실제 구동 중인 Spring Boot
+  3.5.5(Spring Framework 6.2.x)와 버전이 안 맞아 있던 게 이번에 처음 드러남. `2.8.6`으로 업그레이드해
+  해결(2026-09-26, 전체 테스트 회귀 없음 확인). Swagger를 실제로 켜보지 않았다면 발견 못 했을 문제.
+- **실제 구동 검증**: 테스트 코드 검증에 더해, `bootRun` + Swagger UI로 실제 흐름도 확인함 (Firebase
+  테스트 계정으로 로그인 → `GET /api/stories`(#4 트랜잭션) → `GET /api/calendars`(#1 N+1) →
+  `GET /api/v1/nft/rendering`을 존재하지 않는 letterId로 호출해 `GlobalExceptionHandler`가 실제로
+  `{"status":500,"message":"No value present"}` 형태로 응답하는 것까지 확인).
 - **커밋**: (아래 참고)
 
 ## #5 테스트 커버리지 — `in-progress` (범위 축소하여 일부 진행)
