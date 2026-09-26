@@ -11,6 +11,7 @@ import com.sim.backend.domain.retrospect.RetrospectEntity;
 import com.sim.backend.domain.retrospect.RetrospectRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -66,6 +67,7 @@ public class StoryService {
         return buildMainTabResponse(story, date);
     }
 
+    @Transactional
     public MainTabResponseDto getCurrentUserMainTab(LocalDate date, UserEntity user) {
 
         // 먼저 진행 중인 스토리 조회
