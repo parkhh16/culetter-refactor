@@ -81,21 +81,47 @@
   - After: `FOR UPDATE SKIP LOCKED` — 잠긴 행을 건너뛰고 다른 NFT를 집음 → **중복 픽 0건**
 - **커밋**: `0442d0d`(1차 구현), 이후 native query 전환 + 테스트 통과 확인 커밋
 
-## #4 서비스 전반 @Transactional 커버리지 — `todo`
+## #4 서비스 전반 @Transactional 커버리지 — `done`
 
 - **위치**: `Backend/src/main/java/com/sim/backend/domain/**/service` 전반
-- **문제**: 서비스 클래스 7개 중 6개는 `@Transactional` 사용, `NftService`만 0개. 전역 예외 처리기(`@ControllerAdvice`)도 없음.
-- **검증**: grep으로 서비스별 사용 여부 확인 완료 (2026-09-22).
-- **전/후 수치**: (착수 시 정리 예정)
-- **커밋**: -
+- **문제 (재검증 결과, 최초 기록보다 범위 넓음)**: `@Transactional`이 없는 서비스가 `NftService` 하나가
+  아니라 `NftService`, `PinataService`, `RecordService`, `StoryService` 4개였음 (2026-09-26 재확인).
+  이 중 `StoryService.getCurrentUserMainTab()`은 "상태 조회 → 조건부 상태 변경 → 재조회"가 한 흐름인데
+  트랜잭션이 없어, 뒤쪽 조회에서 예외가 나도 앞선 상태 변경이 그대로 남는 문제가 있었음. 전역 예외
+  처리기(`@ControllerAdvice`)도 없어 모든 컨트롤러가 `catch(Exception e){throw new RuntimeException(e);}`
+  보일러플레이트를 반복.
+- **검증**: grep + 코드 직접 확인 완료 (2026-09-26).
+- **후보 비교 (@Transactional 적용 방식)**:
+  - A) 클래스 레벨 일괄 적용 (`RetrospectService` 기존 패턴) — 빠르고 누락 위험 적지만 단순 조회에도 걸림
+  - B) 필요한 메서드에만 개별 적용 (`CalendarService`/`UserService` 기존 패턴) → **채택**, 기존 코드베이스
+    다수 스타일과 일관
+- **범위 판단**: `NftService`의 나머지 메서드(외부 I/O + DB 혼재)와 `RecordService`(단건 조회/저장이라
+  Spring Data JPA가 이미 메서드 단위로 원자적 처리), `PinataService`(DB 트랜잭션과 무관)는 대상에서 제외.
+  전역 예외 처리기는 응답 포맷(상태코드 500 유지)을 그대로 보존하는 선에서 추가, 컨트롤러 6개 중
+  `NftController` 1개만 중복 try-catch를 실제로 제거해 핸들러가 쓰이는 걸 보여줌(나머지 5개는 다음 단위).
+- **측정 방법**: `StoryServiceTransactionTest` — 레코드 조회 단계에서 예외를 강제해 앞선 상태 변경이
+  롤백되는지 확인. `GlobalExceptionHandlerTest` — `NftController`에서 예외 발생 시 여전히 500 +
+  메시지가 응답되는지 MockMvc로 확인.
+- **전/후 수치**:
+  - `StoryService`: Before — 뒤쪽 조회 실패해도 상태 변경(`PENDING_LETTER`)은 그대로 커밋됨 →
+    After — 전체 롤백되어 `IN_PROGRESS` 유지
+  - 전역 예외 처리: Before — 컨트롤러마다 중복된 try-catch 보일러플레이트 → After — `NftController`
+    기준 보일러플레이트 제거, 응답은 기존과 동일(500 + 메시지)하게 유지 확인
+- **한계**: 컨트롤러 5개(Calendar/Record/Retrospect/Story/Auth)의 중복 try-catch는 아직 안 지움 —
+  동작엔 지장 없지만(그냥 안 쓰이는 코드로 남음) 다음 단위에서 정리 필요.
+- **커밋**: (아래 참고)
 
-## #5 테스트 커버리지 — `todo`
+## #5 테스트 커버리지 — `in-progress` (범위 축소하여 일부 진행)
 
-- **위치**: `Backend/src/test/java/com/sim/backend/BackendApplicationTests.java`
-- **문제**: 프로젝트 생성 시 기본으로 만들어진 컨텍스트 로딩 테스트 1개뿐, 그 외 테스트 없음.
-- **검증**: `src/test` 전체 탐색 완료 (2026-09-22) — 파일 1개만 존재 확인.
-- **전/후 수치**: (착수 시 정리 예정)
-- **커밋**: -
+- **위치**: `Backend/src/test/java/com/sim/backend/**` 전반
+- **문제**: 최초엔 `BackendApplicationTests` 하나뿐이었음 (2026-09-22 확인). #1~#4를 거치며
+  `CalendarServiceQueryCountTest`, `NftSchedulerTransactionBoundaryTest`, `NftConcurrentPickTest`,
+  `StoryServiceTransactionTest`, `GlobalExceptionHandlerTest`가 추가되어 총 6개.
+- **이번 단위에서의 범위 판단**: 서비스 9개 전체를 대상으로 한 넓은 커버리지 확대는 하지 않고,
+  #4에서 실제로 변경한 부분(`StoryService` 트랜잭션, 전역 예외 처리기)에 대한 검증 테스트만 추가함.
+  나머지 서비스(`LetterService`, `PinataService`, `AuthService` 등)의 커버리지 확대는 별도 단위로 남김.
+- **전/후 수치**: 테스트 파일 1개(컨텍스트 로딩만) → 6개(실질 검증 테스트 5개 포함)
+- **커밋**: (아래 참고)
 
 ---
 
@@ -103,4 +129,5 @@
 
 원래 제시된 순서는 1 → 2 → 3 → 4 → 5였으나, 코드 검증 과정에서 #2와 #3이 같은 스케줄러 메서드를
 공유하고 서로 강하게 엮여 있음을 확인함(외부 비가역 연산 + 동시성 문제가 한 메서드 안에 같이 있음).
-**1(N+1) → 2+3(트랜잭션 경계 + 동시성, 함께) → 4 → 5** 순서로 확정, 1·2·3 완료. 다음은 #4.
+**1(N+1) → 2+3(트랜잭션 경계 + 동시성, 함께) → 4 → 5** 순서로 확정, 1~4 완료. #5는 #4 범위에
+묶여 일부 진행됨 — 나머지 서비스 커버리지 확대는 다음 단위로 남음.
