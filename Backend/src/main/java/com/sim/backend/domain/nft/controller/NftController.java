@@ -33,12 +33,7 @@ public class NftController {
      * */
     @PostMapping("/minting")
     public ResponseEntity<String> mintingRequest(@RequestBody MintingRequestDTO mintingRequestDTO, @RequestHeader("Authorization") String authToken) {
-        try {
-            nftService.requestSaveToNftDatabase(mintingRequestDTO, authToken);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-
+        nftService.requestSaveToNftDatabase(mintingRequestDTO, authToken);
         return ResponseEntity.ok("NFT minting requested");
     }
 
@@ -48,7 +43,7 @@ public class NftController {
      * 3. 두 가지의 Cid를 담은 metadata를 만들어 한번 더 IPFS로 업로드 한다.
      * */
     @PostMapping("/webhooks/minio")
-    public ResponseEntity<String> getAudioAndUploadPinata(@RequestBody MinioEventRequestDTO event) {
+    public ResponseEntity<String> getAudioAndUploadPinata(@RequestBody MinioEventRequestDTO event) throws Exception {
         String key = event.getKey();
 
         // 초기화
@@ -65,43 +60,26 @@ public class NftController {
             return ResponseEntity.ok("Ignored: not a results/*.wav object");
         }
 
-        try {
-            nftService.uploadPinataAndMinting(letterId, presignedUrl);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        
+        nftService.uploadPinataAndMinting(letterId, presignedUrl);
         return ResponseEntity.ok("NFT 대기 중");
     }
 
     // DB로 부터 발신함 내용 조회
     @GetMapping("/sentTokens")
     public ResponseEntity<List<SentOrRecievedNftResponseDTO>> getSentTokens(@RequestHeader("Authorization") String authToken) {
-        try {
-            return ResponseEntity.ok(nftService.getSentTokens(authToken));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return ResponseEntity.ok(nftService.getSentTokens(authToken));
     }
 
     // DB로 부터 수신함 내용 조회
     @GetMapping("/receivedTokens")
     public ResponseEntity<List<SentOrRecievedNftResponseDTO>> getReceivedTokens(@RequestHeader("Authorization") String authToken) {
-        try {
-            return ResponseEntity.ok(nftService.getReceivedTokens(authToken));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+        return ResponseEntity.ok(nftService.getReceivedTokens(authToken));
     }
 
     // Metamask / SmartContract로 부터 수신한 NFT 상세 조회
     @GetMapping("/rendering")
-    public ResponseEntity<RenderNftResponseDTO> oneNftRendering(@RequestParam Long letterId, @RequestHeader("Authorization") String authToken) {
-        try {
-            return ResponseEntity.ok(nftService.oneNftRendering(letterId, authToken));
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    public ResponseEntity<RenderNftResponseDTO> oneNftRendering(@RequestParam Long letterId, @RequestHeader("Authorization") String authToken) throws Exception {
+        return ResponseEntity.ok(nftService.oneNftRendering(letterId, authToken));
     }
 
     /**
